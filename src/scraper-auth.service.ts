@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Scraper } from '@the-convocation/twitter-scraper';
+import { Scraper } from 'agent-twitter-client';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as dotenv from 'dotenv';

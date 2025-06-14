@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { OpenAiService } from './openai.service';
 import { ScraperAuthService } from './scraper-auth.service';
-import { Scraper, Tweet } from '@the-convocation/twitter-scraper';
+import { Scraper, SearchMode, Tweet } from 'agent-twitter-client';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -104,6 +104,16 @@ export class ScraperService {
     try {
       const scraper = await this.scraperAuthService.getScraper();
 
+      const tweets = scraper.searchTweets(
+        'GiganticRebirth',
+        10,
+        SearchMode.Latest,
+      );
+
+      for await (const tweet of tweets) {
+        console.log(tweet.id);
+      }
+
       for (const kol of this.kols) {
         await this.processTweetsForKol(scraper, kol);
       }
@@ -119,7 +129,7 @@ export class ScraperService {
   ): Promise<void> {
     this.logger.log(`Fetching tweets for: ${kol}`);
 
-    const tweetGen = scraper.getTweets(kol, 2);
+    const tweetGen = scraper.searchTweets(kol, 2, SearchMode.Latest);
 
     for await (const tweet of tweetGen) {
       this.logger.log(`Processing tweet ID: ${tweet.id}`);
