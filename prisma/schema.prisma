@@ -1,0 +1,163 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tweet {
+  id               String    @id @default(cuid())
+  tweetId          String?   @unique
+  bookmarkCount    Int?
+  conversationId   String?
+  hashtags         String[]
+  html             String?
+  isQuoted         Boolean?  @default(false)
+  isPin            Boolean?  @default(false)
+  isReply          Boolean?  @default(false)
+  isRetweet        Boolean?  @default(false)
+  isSelfThread     Boolean?  @default(false)
+  likes            Int?
+  name             String?
+  permanentUrl     String?
+  replies          Int?
+  retweets         Int?
+  text             String?
+  timeParsed       DateTime?
+  timestamp        BigInt?
+  urls             String[]
+  userId           String?
+  username         String?
+  views            Int?
+  sensitiveContent Boolean?  @default(false)
+
+  // Self-referential relationships
+  inReplyToStatusId String?
+  inReplyToStatus   Tweet?  @relation("TweetReplies", fields: [inReplyToStatusId], references: [tweetId])
+  replies_to        Tweet[] @relation("TweetReplies")
+
+  quotedStatusId String?
+  quotedStatus   Tweet?  @relation("TweetQuotes", fields: [quotedStatusId], references: [tweetId])
+  quoted_by      Tweet[] @relation("TweetQuotes")
+
+  retweetedStatusId String?
+  retweetedStatus   Tweet?  @relation("TweetRetweets", fields: [retweetedStatusId], references: [tweetId])
+  retweeted_by      Tweet[] @relation("TweetRetweets")
+
+  // Thread relationship
+  parentThreadId String?
+  parentThread   Tweet?  @relation("TweetThreads", fields: [parentThreadId], references: [tweetId])
+  threadReplies  Tweet[] @relation("TweetThreads")
+
+  // Related models
+  mentions Mention[]
+  photos   Photo[]
+  videos   Video[]
+  place    Place?
+  poll     Poll?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tweets")
+}
+
+model Mention {
+  id       String  @id @default(cuid())
+  userId   String // Original user ID from Twitter
+  username String?
+  name     String?
+
+  // Foreign key to tweet
+  tweetId String
+  tweet   Tweet  @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("mentions")
+}
+
+model Photo {
+  id      String  @id @default(cuid())
+  photoId String // Original photo ID from Twitter
+  url     String
+  altText String?
+
+  // Foreign key to tweet
+  tweetId String
+  tweet   Tweet  @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("photos")
+}
+
+model Video {
+  id      String  @id @default(cuid())
+  videoId String // Original video ID from Twitter
+  preview String
+  url     String?
+
+  // Foreign key to tweet
+  tweetId String
+  tweet   Tweet  @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("videos")
+}
+
+model Place {
+  id          String  @id @default(cuid())
+  placeId     String? // Original place ID from Twitter
+  placeType   String?
+  name        String?
+  fullName    String?
+  countryCode String?
+  country     String?
+  boundingBox Json? // Store bounding box as JSON
+
+  // One-to-one relationship with Tweet
+  tweetId String @unique
+  tweet   Tweet  @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("places")
+}
+
+model Poll {
+  id              String  @id @default(cuid())
+  pollId          String? // Original poll ID from Twitter
+  endDatetime     String?
+  votingStatus    String?
+  durationMinutes Int
+
+  // One-to-one relationship with Tweet
+  tweetId String @unique
+  tweet   Tweet  @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  // One-to-many relationship with poll options
+  options PollOption[]
+
+  createdAt DateTime @default(now())
+
+  @@map("polls")
+}
+
+model PollOption {
+  id       String @id @default(cuid())
+  position Int?
+  label    String
+  votes    Int?
+
+  // Foreign key to poll
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("poll_options")
+}
