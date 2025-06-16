@@ -57,6 +57,7 @@ model Tweet {
   videos   Video[]
   place    Place?
   poll     Poll?
+  coins    Coin[]    @relation("CoinTweets")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -160,4 +161,27 @@ model PollOption {
   createdAt DateTime @default(now())
 
   @@map("poll_options")
+}
+
+model Coin {
+  id              String   @id @default(cuid())
+  symbol          String // e.g., "MOTIX"
+  name            String? // Optional, if you can extract it
+  contractAddress String // e.g., "9N2Jr1vBiDWpiZAU7qGLTKcTa5FCPQyQW7rQnNxmotiX"
+  marketCap       String? // e.g., "$25k"
+  chain           String? // e.g., "Solana", "Ethereum"
+  decimals        Int? // Optional
+  tweets          Tweet[]  @relation("CoinTweets")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sentiment Sentiment?
+
+  @@map("coins")
+}
+
+enum Sentiment {
+  BULLISH
+  BEARISH
+  NEUTRAL
 }
