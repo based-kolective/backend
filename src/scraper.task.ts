@@ -8,12 +8,11 @@ export class ScraperTask {
     console.log('ScraperTask constructor');
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES, {
+  @Cron(CronExpression.EVERY_HOUR, {
     waitForCompletion: true,
     unrefTimeout: true,
   })
   async handleCron() {
-    console.log('Running scraper task');
     await this.scraperService.runScraperTask();
   }
 }

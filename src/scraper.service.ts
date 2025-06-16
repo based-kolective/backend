@@ -15,104 +15,13 @@ export class ScraperService {
     private readonly scraperAuthService: ScraperAuthService,
   ) {}
 
-  kols = [
-    'GiganticRebirth',
-    'cobie',
-    'Husslin_',
-    'IamNomad',
-    'insiliconot',
-    'CC2Ventures',
-    'crypto_linn',
-    'S4mmyEth',
-    '0xNairolf',
-    'stacy_muur',
-    'arndxt_xo',
-    'poopmandefi',
-    'Hercules_Defi',
-    'mztacat',
-    'wyckoffweb',
-    'Zun2025',
-    'DeFiMinty',
-    '0xMoei',
-    'OxJoshyy',
-    '0xxbeacon',
-    'Tanaka_L2',
-    '73lV_',
-    '0xdetweiler',
-    '0xdahua',
-    'TheBigNie',
-    'PinkBrains_io',
-    'DefiIgnas',
-    'NiphermeDave',
-    'heycape_',
-    'ripchillpill',
-    'PowerPasheur',
-    'jessepollak',
-    'OxTochi',
-    'RBCHI',
-    'AnonVee_',
-    'apixtwts',
-    'tier10k',
-    '0xWenMoon',
-    'Airdropfinds',
-    'GuarEmperor',
-    'satyaXBT',
-    'eli5_defi',
-    'AlwaysBeenChoze',
-    'Autosultan_team',
-    'syaerulid',
-    'canducrypto',
-    'zerokn0wledge_',
-    'rektdiomedes',
-    'wacy_time1',
-    'thedefiedge',
-    'alpha_pls',
-    'crypthoem',
-    'QwQiao',
-    'ahboyash',
-    'JackNiewold',
-    '2lambro',
-    '0xRainandCoffee',
-    '0xsmallbrain',
-    'AKAKAY04',
-    'hmalviya9',
-    'LuciusFang10',
-    'Louround_',
-    'Slappjakke',
-    'CryptoKoryo',
-    'HsakaTrades',
-    'Awawat_Trades',
-    'EmperorBTC',
-    'smartestmoney_',
-    'assasin_eth',
-    '0xENAS',
-    'ericonomic',
-    'maruushae',
-    'hyde6000',
-    'TraderMagus',
-    'Exoticktrades',
-    'HighStakesCap',
-  ];
-
-  async onModuleInit() {
-    await this.runScraperTask();
-  }
+  kols = ['Keeper_Degen', 'CryptoBionic', 'whalehamlux'];
 
   async runScraperTask(): Promise<void> {
     this.logger.log('Starting scraper task');
 
     try {
       const scraper = await this.scraperAuthService.getScraper();
-
-      const tweets = scraper.searchTweets(
-        'GiganticRebirth',
-        10,
-        SearchMode.Latest,
-      );
-
-      for await (const tweet of tweets) {
-        console.log(tweet.id);
-      }
 
       for (const kol of this.kols) {
         await this.processTweetsForKol(scraper, kol);
@@ -129,13 +38,65 @@ export class ScraperService {
   ): Promise<void> {
     this.logger.log(`Fetching tweets for: ${kol}`);
 
-    const tweetGen = scraper.searchTweets(kol, 2, SearchMode.Latest);
+    const tweetGen = scraper.searchTweets(
+      `-is:retweet (from:${kol}) -filter:replies`,
+      10,
+      SearchMode.Latest,
+    );
 
     for await (const tweet of tweetGen) {
       this.logger.log(`Processing tweet ID: ${tweet.id}`);
 
       try {
-        await this.processTweet(tweet);
+        const tweetData = await this.processTweet(tweet);
+
+        const analyze = await this.openAiService.analyzeTweetData(
+          tweetData.tweet,
+        );
+
+        if (
+          analyze &&
+          typeof analyze.symbol === 'string' &&
+          analyze.symbol.trim().length > 0 &&
+          tweetData?.tweet?.id
+        ) {
+          const { symbol, chain, contractAddress, decimals, marketCap, name } =
+            analyze;
+
+          const existingCoin = await this.prisma.coin.findFirst({
+            where: {
+              symbol: symbol.toLowerCase(),
+              OR: [
+                { contractAddress: contractAddress.toLowerCase() },
+                { contractAddress: undefined }, // for coins that are not on the blockchain
+              ],
+            },
+          });
+
+          if (!existingCoin) {
+            await this.prisma.coin.create({
+              data: {
+                symbol,
+                chain,
+                contractAddress,
+                decimals,
+                marketCap,
+                name,
+                tweets: {
+                  connect: { id: tweetData.tweet.id },
+                },
+              },
+            });
+          } else {
+            await this.prisma.coin.update({
+              where: { id: existingCoin.id },
+              data: {
+                tweets: { connect: { id: tweetData.tweet.id } },
+              },
+            });
+          }
+        }
+
         this.logger.log(`Successfully processed tweet ${tweet.id}`);
       } catch (error) {
         this.logger.error(`Failed to process tweet ${tweet.id}:`, error);
@@ -143,22 +104,30 @@ export class ScraperService {
     }
   }
 
-  private async processTweet(tweet: Tweet): Promise<void> {
+  private async processTweet(tweet: Tweet) {
     console.log(tweet.id);
     const tweetData = this.buildTweetData(tweet);
 
     // Use transaction to ensure data consistency
-    await this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       // Handle main tweet
-      await this.upsertTweet(tx, tweet.id, tweetData);
+      const upsertedTweet = await this.upsertTweet(tx, tweet.id, tweetData);
 
       // Handle related data in parallel where possible
-      await Promise.all([
+      const promise = await Promise.all([
         this.processThreadChildren(tx, tweet),
         this.processMentions(tx, tweet),
         this.processPhotos(tx, tweet),
         this.processVideos(tx, tweet),
       ]);
+
+      return {
+        tweet: upsertedTweet,
+        threadChildren: promise[0],
+        mentions: promise[1],
+        photos: promise[2],
+        videos: promise[3],
+      };
     });
   }
 
@@ -194,12 +163,12 @@ export class ScraperService {
     tx: Prisma.TransactionClient,
     tweetId: string | undefined,
     tweetData: Prisma.TweetCreateInput,
-  ): Promise<void> {
+  ) {
     if (!tweetId) {
       throw new Error('Tweet ID is required');
     }
 
-    await tx.tweet.upsert({
+    return await tx.tweet.upsert({
       where: { tweetId },
       create: tweetData,
       update: tweetData,

@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 
-function convertBigIntToString(obj: unknown): unknown {
+export function convertBigIntToString(obj: unknown): unknown {
   if (typeof obj === 'bigint') {
     return obj.toString();
   } else if (Array.isArray(obj)) {
@@ -47,6 +47,7 @@ export class AppController {
         retweetedStatus: true,
         replies_to: true,
         threadReplies: true,
+        coins: true,
       },
     });
 
