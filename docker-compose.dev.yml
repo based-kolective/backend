@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: kolective-backend-dev
+    ports:
+      - "3000:3000"
+      - "9229:9229" # Debug port
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/kolective_dev?schema=public
+      - TWITTER_USERNAME=${TWITTER_USERNAME}
+      - TWITTER_PASSWORD=${TWITTER_PASSWORD}
+      - TWITTER_EMAIL=${TWITTER_EMAIL}
+    depends_on:
+      - db
+    command: pnpm run start:dev
+    restart: unless-stopped
+    networks:
+      - kolective-network
+
+  db:
+    image: postgres:15
+    container_name: kolective-db-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kolective_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kolective-network
+
+volumes:
+  postgres_data:
+
+networks:
+  kolective-network:
+    driver: bridge
