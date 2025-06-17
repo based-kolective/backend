@@ -183,9 +183,9 @@ model Coin {
 
 model User {
   id          String   @id @default(cuid())
-  ownerKey   String @unique
-  walletAddress String? @unique
-  privateKey String? @unique
+  ownerAddress   String @unique // owner address of the user
+  walletAddress String? @unique // generated wallet address
+  walletPrivateKey String? @unique // private key for the wallet
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

@@ -12,7 +12,7 @@ export class ScraperTask {
     );
   }
 
-  @Cron(CronExpression.EVERY_MINUTE, {
+  @Cron(CronExpression.EVERY_10_MINUTES, {
     waitForCompletion: true,
     unrefTimeout: true,
   })
