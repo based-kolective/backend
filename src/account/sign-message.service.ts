@@ -51,9 +51,16 @@ export class SignMessageService {
    * @param timestamp - Optional timestamp, defaults to current time
    * @returns String message to be signed
    */
-  generateAuthMessage(address: string, timestamp?: number): string {
-    const time = timestamp || Date.now();
-    return `Sign this message to authenticate with Kolective Backend.\n\nAddress: ${address}\nTimestamp: ${time}`;
+  generateAuthMessage(address: string, timestamp?: string): string {
+    const time = timestamp || new Date().toISOString();
+    return `Welcome to Kolective!
+
+By signing this message, you agree to register your wallet with Kolective.
+
+Wallet: ${address}
+Timestamp: ${time}
+
+This signature will expire in 10 minutes.`;
   }
 
   /**
@@ -64,14 +71,37 @@ export class SignMessageService {
    */
   isSignatureNotExpired(message: string, maxAgeMinutes: number = 10): boolean {
     try {
-      const timestampMatch = message.match(/Timestamp: (\d+)/);
-      if (!timestampMatch) return false;
+      // Try to match timestamp in ISO format (e.g., Timestamp: 2025-06-17T15:39:07.157Z)
+      const timestampMatch = message.match(
+        /Timestamp: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/,
+      );
+      if (!timestampMatch) {
+        console.log('No timestamp found in message:', message);
+        return false;
+      }
 
-      const messageTime = parseInt(timestampMatch[1]);
+      console.log('Found ISO timestamp:', timestampMatch[1]);
+      const messageTime = new Date(timestampMatch[1]).getTime();
+      if (isNaN(messageTime)) {
+        console.log('Invalid timestamp format:', timestampMatch[1]);
+        return false;
+      }
+
       const currentTime = Date.now();
       const maxAge = maxAgeMinutes * 60 * 1000; // Convert to milliseconds
+      const ageMs = currentTime - messageTime;
+      const ageMinutes = ageMs / (60 * 1000);
 
-      return currentTime - messageTime <= maxAge;
+      console.log('Timestamp validation:', {
+        messageTime,
+        currentTime,
+        ageMs,
+        ageMinutes,
+        maxAgeMinutes,
+        isValid: ageMs <= maxAge,
+      });
+
+      return ageMs <= maxAge;
     } catch (error) {
       console.error('Error validating signature timestamp:', error);
       return false;

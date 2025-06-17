@@ -86,9 +86,19 @@ export class Web3AccountController {
       throw new Error('Invalid signature');
     }
 
-    // Check if signature is not expired
+    // Check if signature is not expired with detailed error
     if (!this.signMessageService.isSignatureNotExpired(message, 10)) {
-      throw new Error('Signature expired');
+      // Extract timestamp for better error message
+      const timestampMatch = message.match(/Timestamp: ([\d-T:.Z]+)/);
+      if (timestampMatch) {
+        const messageTime = new Date(timestampMatch[1]).getTime();
+        const currentTime = Date.now();
+        const ageMinutes = (currentTime - messageTime) / (60 * 1000);
+        console.log('Signature age in minutes:', ageMinutes);
+        throw new Error(`Signature expired xxx. Message was signed ${ageMinutes.toFixed(2)} minutes ago, but maximum age is 10 minutes.`);
+      } else {
+        throw new Error('Signature expired - no valid timestamp found in message');
+      }
     }
 
     try {
