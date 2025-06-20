@@ -180,6 +180,16 @@ model Coin {
   @@map("coins")
 }
 
+
+model User {
+  id          String   @id @default(cuid())
+  ownerAddress   String @unique // owner address of the user
+  walletAddress String? @unique // generated wallet address
+  walletPrivateKey String? @unique // private key for the wallet
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 enum Sentiment {
   BULLISH
   BEARISH

@@ -7,9 +7,10 @@ import { ScraperTask } from 'src/scraper.task';
 import { ScraperService } from 'src/scraper.service';
 import { OpenAiService } from './openai.service';
 import { ScraperAuthService } from './scraper-auth.service';
+import { AccountModule } from './account/account.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule.forRoot(), AccountModule],
   controllers: [AppController],
   providers: [
     AppService,
